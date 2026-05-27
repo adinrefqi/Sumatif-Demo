@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruang Ujian Online - SMP THHK</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="ux-enhancements.js"></script>
+    <style>
+        :root {
+            /* Rich Modern HSL Palette */
+            --h-primary: 239;
+            --s-primary: 84%;
+            --l-primary: 67%;
+            --primary: hsl(var(--h-primary), var(--s-primary), var(--l-primary)); /* #6366f1 Indigo */
+            --primary-dark: hsl(var(--h-primary), var(--s-primary), 58%); /* #4f46e5 */
+            --primary-glow: hsla(var(--h-primary), var(--s-primary), var(--l-primary), 0.3);
+
+            --h-secondary: 270;
+            --s-secondary: 95%;
+            --l-secondary: 75%;
+            --secondary: hsl(var(--h-secondary), var(--s-secondary), var(--l-secondary)); /* #c084fc Purple */
+            --secondary-glow: hsla(var(--h-secondary), var(--s-secondary), var(--l-secondary), 0.3);
+
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.25);
+            --danger: #ef4444;
+
+            /* Neutral Colors */
+            --bg-dark: #090d16; /* Deeper slate-950 for premium contrast */
+            --card-bg: rgba(17, 24, 39, 0.55); /* Premium translucent slate-900 */
+            --text-white: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.06);
+
+            /* Fine Glassmorphism Specifications */
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-border-hover: rgba(99, 102, 241, 0.35);
+            --glass-bg: rgba(255, 255, 255, 0.02);
+            --glass-bg-hover: rgba(255, 255, 255, 0.05);
+            --backdrop-blur: blur(24px);
+
+            --footer-height: 12vh;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-white);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Ambient Background Glow System */
+        .ambient-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .glow-1, .glow-2 {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.12;
+            mix-blend-mode: screen;
+            pointer-events: none;
+            will-change: transform;
+        }
+
+        .glow-1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            top: -150px;
+            left: -100px;
+            animation: floatGlow1 25s infinite alternate ease-in-out;
+        }
+
+        .glow-2 {
+            width: 450px;
+            height: 450px;
+            background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+            bottom: -100px;
+            right: -100px;
+            animation: floatGlow2 20s infinite alternate ease-in-out;
+        }
+
+        @keyframes floatGlow1 {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(100px, 50px) scale(1.1); }
+            100% { transform: translate(-30px, 80px) scale(0.95); }
+        }
+
+        @keyframes floatGlow2 {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-80px, -60px) scale(0.9); }
+            100% { transform: translate(50px, 30px) scale(1.05); }
+        }
+
+        /* 1. Header Info Bar */
+        .info-bar {
+            height: 48px;
+            background: rgba(13, 18, 30, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            color: var(--text-white);
+            z-index: 100;
+        }
+
+        #display-time {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 4px 12px;
+            border-radius: 8px;
+            color: var(--primary);
+            font-weight: 600;
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+
+        /* 2. Main Viewport (Fixed PDF Iframe) */
+        #main-exam-view {
+            flex: 1;
+            width: 100%;
+            background: #090d16;
+            position: relative;
+            overflow: auto;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        #pdf-wrapper {
+            width: 100%;
+            height: 100%;
+            transform-origin: top center;
+            transition: transform 0.2s ease-out;
+            display: flex;
+            background: transparent;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            flex: 1;
+            background: white;
+        }
+
+        /* Float Zoom Controls */
+        .zoom-controls {
+            position: fixed;
+            right: 24px;
+            top: 72px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .zoom-btn {
+            width: 46px;
+            height: 46px;
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-white);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .zoom-btn:hover {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-color: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .zoom-btn:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        /* 3. Fixed Footer section */
+        #fixed-footer {
+            height: var(--footer-height);
+            background: rgba(13, 18, 30, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 2rem;
+            z-index: 100;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-finish {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+            border: none;
+            padding: 1.1rem 3.5rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            border-radius: 100px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px -5px rgba(239, 68, 68, 0.4);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: pulse 2.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+            }
+            70% {
+                transform: scale(1.03);
+                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        .btn-finish:hover {
+            transform: scale(1.06);
+            filter: brightness(1.15);
+            box-shadow: 0 15px 35px -5px rgba(239, 68, 68, 0.55);
+        }
+
+        /* 4. Modal Styles */
+        #modal-confirm {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(4, 6, 12, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeInModal 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInModal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border);
+            width: 90%;
+            max-width: 460px;
+            padding: 2.5rem;
+            border-radius: 28px;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            text-align: center;
+            transform: scale(0.95);
+            animation: scaleInModal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes scaleInModal {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-card h2 {
+            margin-bottom: 0.5rem;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.01em;
+        }
+
+        .modal-card p {
+            margin-bottom: 2rem;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .input-group {
+            text-align: left;
+            margin-bottom: 1.3rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
+            color: var(--secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .input-text {
+            width: 100%;
+            padding: 0.9rem 1.2rem;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: white;
+            font-size: 0.95rem;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            outline: none;
+        }
+
+        .input-text:focus {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--primary);
+            box-shadow: 0 0 18px rgba(99, 102, 241, 0.25), 0 0 0 1px var(--primary) inset;
+        }
+
+        /* Customize select tag dropdown arrow and style */
+        select.input-text {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1.2rem center;
+            background-size: 1.25rem;
+            padding-right: 2.5rem;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1.1rem;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(99, 102, 241, 0.45);
+            filter: brightness(1.1);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .btn-cancel {
+            margin-top: 1.2rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-cancel:hover {
+            color: var(--text-white);
+        }
+
+        /* 5. Locked Screen View */
+        #locked-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #0b1329 0%, #030712 100%);
+            z-index: 5000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .lock-icon {
+            font-size: 7rem;
+            color: var(--primary);
+            margin-bottom: 2rem;
+            filter: drop-shadow(0 0 30px rgba(99, 102, 241, 0.4));
+            animation: lockShake 4s infinite;
+        }
+
+        @keyframes lockShake {
+            0%, 90%, 100% { transform: scale(1); }
+            92% { transform: scale(1.08) rotate(5deg); }
+            94% { transform: scale(1.08) rotate(-5deg); }
+            96% { transform: scale(1.08) rotate(5deg); }
+            98% { transform: scale(1.08) rotate(-5deg); }
+        }
+
+        .locked-title {
+            font-size: 2.6rem;
+            font-weight: 850;
+            margin-bottom: 1.5rem;
+            color: #fff;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .locked-msg {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 580px;
+            line-height: 1.7;
+        }
+
+        /* Toast UI */
+        #toast {
+            position: fixed;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: white;
+            padding: 0.9rem 2.2rem;
+            border-radius: 100px;
+            font-weight: 600;
+            z-index: 10000;
+            display: none;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideUpToast 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUpToast {
+            from { transform: translate(-50%, 20px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        /* Broadcast Modal */
+        #modal-broadcast {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(4, 6, 12, 0.75);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            animation: fadeInModal 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .bc-card {
+            background: rgba(23, 23, 37, 0.75);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border: 2px solid var(--secondary);
+            border-radius: 28px;
+            max-width: 480px;
+            width: 100%;
+            padding: 2.5rem;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(192, 132, 252, 0.25), 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            animation: scaleInModal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .bc-icon {
+            font-size: 3.8rem;
+            color: var(--secondary);
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 0 15px var(--secondary-glow));
+            animation: ring 2.2s infinite ease-in-out;
+        }
+
+        @keyframes ring {
+            0% { transform: rotate(0); }
+            5% { transform: rotate(12deg); }
+            10% { transform: rotate(-12deg); }
+            15% { transform: rotate(10deg); }
+            20% { transform: rotate(-10deg); }
+            25% { transform: rotate(0); }
+            100% { transform: rotate(0); }
+        }
+
+        .bc-btn-understand {
+            background: linear-gradient(135deg, var(--secondary), hsl(var(--h-secondary), var(--s-secondary), 60%));
+            border: none;
+            padding: 1.1rem 2rem;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 6px 20px rgba(192, 132, 252, 0.3);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .bc-btn-understand:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(192, 132, 252, 0.45);
+            filter: brightness(1.1);
+        }
+
+        .bc-btn-understand:active {
+            transform: translateY(0);
+        }
+
+        /* Custom Scrollbar for Ruang Ujian */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+    </style>
+</head>
+
+<body>
+
+    <!-- Ambient Background Glow System -->
+    <div class="ambient-glow">
+        <div class="glow-1"></div>
+        <div class="glow-2"></div>
+    </div>
+
+    <div class="info-bar">
+        <div><i class="fas fa-school"></i> SMP TUNAS HIDUP HARAPAN KITA</div>
+        <div id="display-time">00:00:00</div>
+    </div>
+
+    <!-- MAIN VIEW (PDF) -->
+    <div id="main-exam-view">
+        <div id="pdf-wrapper">
+            <iframe id="pdf-viewer" src="about:blank"></iframe>
+        </div>
+    </div>
+
+    <!-- ZOOM CONTROLS -->
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="adjustZoom(0.1)" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+        <button class="zoom-btn" onclick="adjustZoom(-0.1)" title="Zoom Out"><i
+                class="fas fa-search-minus"></i></button>
+        <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom"
+            style="font-size: 0.8rem; font-weight: bold;">100%</button>
+    </div>
+
+    <!-- FOOTER ACTION -->
+    <footer id="fixed-footer">
+        <button class="btn-finish" onclick="openConfirmModal()">
+            <i class="fas fa-check-circle"></i> SAYA SUDAH SELESAI
+        </button>
+    </footer>
+
+    <!-- CONFIRMATION MODAL -->
+    <div id="modal-confirm">
+        <div class="modal-card">
+            <div style="font-size: 3.2rem; color: var(--primary); margin-bottom: 1rem; filter: drop-shadow(0 0 10px var(--primary-glow));"><i class="fas fa-user-circle"></i></div>
+            <h2>Laporan Selesai</h2>
+            <p>Masukkan identitas Anda untuk mengunci aplikasi dan mengirim laporan.</p>
+
+            <div class="input-group">
+                <label>Nomor Peserta</label>
+                <input type="text" id="stu-id" class="input-text" placeholder="Contoh: 01-001" list="dh-nomor-list">
+            </div>
+
+            <div class="input-group">
+                <label>Nama Lengkap</label>
+                <input type="text" id="stu-name" class="input-text" placeholder="Nama Anda...">
+            </div>
+
+            <div class="input-group">
+                <label>Kelas</label>
+                <select id="stu-class" class="input-text">
+                    <option value="">-- Pilih Kelas --</option>
+                    <option value="7">Kelas 7</option>
+                    <option value="8">Kelas 8</option>
+                    <option value="9">Kelas 9</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Ruangan</label>
+                <select id="stu-room" class="input-text">
+                    <option value="">-- Pilih Ruang --</option>
+                    <option value="R1">R1</option>
+                    <option value="R2">R2</option>
+                    <option value="R3">R3</option>
+                </select>
+            </div>
+
+            <button class="btn-submit" onclick="submitFinishReport()">
+                KIRIM & KUNCI LAYAR <i class="fas fa-paper-plane"></i>
+            </button>
+            <button onclick="closeModal()" class="btn-cancel">
+                Batal <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- LOCKED SCREEN VIEW -->
+    <div id="locked-screen">
+        <div class="lock-icon"><i class="fas fa-lock"></i></div>
+        <h1 class="locked-title">UJIAN SELESAI</h1>
+        <p class="locked-msg">
+            Terkunci secara otomatis. Silakan kumpulkan perangkat kepada pengawas, pastikan lembar jawaban Anda sudah lengkap, dan kumpulkan kepada pengawas 5 menit setelah waktu ujian berakhir.
+        </p>
+        <div style="margin-top: 3rem; font-weight: 600; color: var(--primary); letter-spacing: 2px;">TERIMA KASIH</div>
+    </div>
+
+    <div id="toast">Berhasil Mengirim Laporan!</div>
+
+    <!-- BROADCAST MODAL -->
+    <div id="modal-broadcast">
+        <div class="bc-card">
+            <div class="bc-icon"><i class="fas fa-bullhorn"></i></div>
+            <h2 style="margin-bottom: 1rem; color: #fff;">Pengumuman Baru</h2>
+            <div id="bc-message"
+                style="font-size: 1.2rem; line-height: 1.6; margin-bottom: 2rem; color: #cbd5e1; font-weight: 600;">
+                <!-- Message content -->
+            </div>
+            <button onclick="closeBroadcast()" class="bc-btn-understand">
+                SAYA MENGERTI <i class="fas fa-check"></i>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // ======= ZOOM LOGIC =======
+        let currentZoom = 1.0;
+        window.adjustZoom = function (delta) {
+            currentZoom += delta;
+            if (currentZoom < 0.5) currentZoom = 0.5;
+            if (currentZoom > 4.0) currentZoom = 4.0;
+            applyZoom();
+        }
+
+        window.resetZoom = function () {
+            currentZoom = 1.0;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const wrapper = document.getElementById('pdf-wrapper');
+            if (wrapper) {
+                wrapper.style.transform = `scale(${currentZoom})`;
+                // Sesuaikan lebar container agar scroll muncul dengan benar
+                wrapper.style.width = (100 / currentZoom) + '%';
+                wrapper.style.height = (100 / currentZoom) + '%';
+            }
+        }
+
+        // ======= PINCH TO ZOOM (FUNGSI CUBIT) =======
+        let initialDist = 0;
+        const examView = document.getElementById('main-exam-view');
+
+        examView.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                initialDist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+            }
+        }, { passive: false });
+
+        examView.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialDist > 0) {
+                // Jangan cegah default agar browser tidak lag, tapi kita handle zoom
+                const currentDist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+
+                // Hitung perubahan jarak
+                const diff = currentDist - initialDist;
+
+                // Sensitivitas cubit (makin besar makin cepat zoomnya)
+                const sensitivity = 0.005;
+                currentZoom += diff * sensitivity;
+
+                // Batas Zoom (0.5x sampai 4x)
+                if (currentZoom < 0.5) currentZoom = 0.5;
+                if (currentZoom > 4.0) currentZoom = 4.0;
+
+                applyZoom();
+                initialDist = currentDist; // Update untuk perhitungan berikutnya
+
+                // Cegah browser melakukan zoom bawaan (system zoom)
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // ======= CONFIGURATION & INIT =======
+        async function init() {
+            // 1. JAM / CLOCK
+            function updateClock() {
+                const now = new Date();
+                const display = document.getElementById('display-time');
+                if (display) display.textContent = now.toLocaleTimeString('id-ID');
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            // 2. PARSE PDF URL
+            // 2. PARSE PDF URL
+            const urlParams = new URLSearchParams(window.location.search);
+            let pdfUrl = urlParams.get('pdf');
+
+            if (pdfUrl) {
+                let finalUrl = pdfUrl;
+                if (finalUrl.includes('drive.google.com')) {
+                    // Paksa ke mode preview agar bisa di-embed
+                    // Handle various Drive URL formats (view, edit, open, etc.)
+                    finalUrl = finalUrl.replace(/\/view(\?.*)?$/, '/preview');
+                    finalUrl = finalUrl.replace(/\/edit(\?.*)?$/, '/preview');
+                    finalUrl = finalUrl.replace(/\/open(\?.*)?$/, '/preview');
+                    
+                    if (!finalUrl.includes('/preview')) {
+                        // If it doesn't end with /view or /edit, try to append /preview or transform it
+                        if (finalUrl.includes('id=')) {
+                            const id = new URL(finalUrl).searchParams.get('id');
+                            finalUrl = `https://drive.google.com/file/d/${id}/preview`;
+                        } else {
+                            finalUrl = finalUrl.split('?')[0].replace(/\/$/, '') + '/preview';
+                        }
+                    }
+                }
+                const iframe = document.getElementById('pdf-viewer');
+                if (iframe) iframe.src = finalUrl;
+            } else {
+                console.warn('No PDF URL provided');
+            }
+
+            // 3. INIT SUPABASE (Sama seperti index.html agar stabil)
+            const supabaseUrl = 'https://jbmhfwfckmneivztsizc.supabase.co';
+            const supabaseKey = 'sb_publishable_lkdD9wXKswBi-r0PegxHhQ_6QTnitLL';
+
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                window.supabaseClient = createClient(supabaseUrl, supabaseKey);
+                console.log('Supabase Ready');
+
+                // Presence logic for Ruang Ujian
+                initPresence(window.supabaseClient);
+            } catch (err) {
+                console.error('Supabase load error:', err);
+            }
+        }
+
+        async function initPresence(client) {
+            const savedName = localStorage.getItem('student_name') || 'Siswa (Belum Absen)';
+            const savedClass = localStorage.getItem('student_class') || '-';
+            const savedRoom = localStorage.getItem('student_room') || '-';
+
+            const onlineChannel = client.channel('exam-system', {
+                config: {
+                    presence: {
+                        key: 'user-' + Math.random().toString(36).substr(2, 9),
+                    },
+                },
+            });
+
+            onlineChannel
+                .on('broadcast', { event: 'announcement' }, ({ payload }) => {
+                    handleBroadcast(payload);
+                })
+                .on('postgres_changes', {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'exam_settings',
+                    filter: 'id=eq.master_config'
+                }, payload => {
+                    if (payload.new && payload.new.data) {
+                        const examControl = payload.new.data;
+                        const currSiswa = sessionStorage.getItem('nomorUjian');
+                        if (currSiswa && examControl.blocked_students && examControl.blocked_students.includes(currSiswa)) {
+                            sessionStorage.clear();
+                            // Hapus onbeforeunload agar redirect tidak error
+                            window.onbeforeunload = null;
+                            // Hapus iframe agar tidak bisa baca soal lagi
+                            const viewer = document.getElementById('main-exam-view');
+                            if(viewer) viewer.remove();
+                            // Tampilkan layar merah
+                            const redScreen = document.createElement('div');
+                            redScreen.style.cssText = 'background:#ef4444;color:white;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:sans-serif;text-align:center;padding:20px;';
+                            redScreen.innerHTML = '<h1>UJIAN DIHENTIKAN!</h1><p style="font-size:1.2rem;">Akun Anda diblokir oleh Pengawas.</p><p>Silakan lapor ke meja pengawas segera.</p>';
+                            document.body.appendChild(redScreen);
+                            
+                            setTimeout(() => {
+                                window.location.replace('index.html');
+                            }, 3000);
+                        }
+                    }
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await onlineChannel.track({
+                            nama: savedName,
+                            kelas: savedClass,
+                            ruang: savedRoom,
+                            status: 'Sedang Mengerjakan',
+                            online_at: new Date().toISOString(),
+                        });
+                    }
+                });
+
+            // Handle cleanup when closing
+            window.addEventListener('beforeunload', () => {
+                onlineChannel.unsubscribe();
+            });
+
+            // Auto-fill student data from JSON
+            loadStudentData();
+        }
+
+        let studentList = [];
+        async function loadStudentData() {
+            try {
+                const resp = await fetch('data_siswa.json');
+                studentList = await resp.json();
+                
+                const datalist = document.createElement('datalist');
+                datalist.id = 'dh-nomor-list';
+                studentList.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = `${s.id} - ${s.nama}`;
+                    datalist.appendChild(opt);
+                });
+                document.body.appendChild(datalist);
+
+                const idInput = document.getElementById('stu-id');
+                if (idInput) {
+                    idInput.addEventListener('input', (e) => {
+                        const val = e.target.value.trim();
+                        const student = studentList.find(s => s.id === val);
+                        if (student) {
+                            document.getElementById('stu-name').value = student.nama;
+                            document.getElementById('stu-class').value = student.grade;
+                            document.getElementById('stu-room').value = 'R' + student.room;
+                        }
+                    });
+                }
+                
+                // Pre-fill from localStorage if available
+                const savedName = localStorage.getItem('student_name');
+                const savedClass = localStorage.getItem('student_class');
+                const savedRoom = localStorage.getItem('student_room');
+                if (savedName) document.getElementById('stu-name').value = savedName;
+                if (savedClass) document.getElementById('stu-class').value = savedClass;
+                if (savedRoom) document.getElementById('stu-room').value = savedRoom;
+
+            } catch (e) { console.error('Gagal memuat data siswa:', e); }
+        }
+
+        function handleBroadcast(payload) {
+            const savedName = localStorage.getItem('student_name') || '';
+            const savedRoom = localStorage.getItem('student_room') || '';
+            const target = payload.target || 'ALL';
+
+            // Filter Target: ALL, specific Room, or specific Name
+            const isTargeted = (target === 'ALL') ||
+                (target === savedRoom) ||
+                (target.toLowerCase() === savedName.toLowerCase());
+
+            if (!isTargeted) return;
+
+            const modal = document.getElementById('modal-broadcast');
+            const msgEl = document.getElementById('bc-message');
+            if (modal && msgEl) {
+                msgEl.innerText = payload.message;
+                modal.style.display = 'flex';
+
+                // Play notification sound
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play().catch(e => console.log('Audio blocked', e));
+
+                // Vibration for mobile if supported
+                if ("vibrate" in navigator) {
+                    navigator.vibrate([200, 100, 200]);
+                }
+            }
+        }
+
+        window.closeBroadcast = function () {
+            document.getElementById('modal-broadcast').style.display = 'none';
+        }
+
+        // Run Init
+        init();
+
+        // ======= UI LOGIC =======
+        window.openConfirmModal = function () {
+            document.getElementById('modal-confirm').style.display = 'flex';
+        }
+
+        window.closeModal = function () {
+            document.getElementById('modal-confirm').style.display = 'none';
+        }
+
+        window.submitFinishReport = async function () {
+            const name = document.getElementById('stu-name').value.trim();
+            const kelas = document.getElementById('stu-class').value;
+            const ruangan = document.getElementById('stu-room').value;
+            const timeStr = new Date().toLocaleTimeString('id-ID');
+
+            if (!name) {
+                alert("Harap masukkan nama Anda!");
+                return;
+            }
+
+            const btn = document.querySelector('.btn-submit');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+            btn.disabled = true;
+
+            try {
+                if (window.supabaseClient) {
+                    const { error } = await window.supabaseClient
+                        .from('laporan_selesai')
+                        .insert([{
+                            nama_siswa: name,
+                            kelas: kelas,
+                            ruangan: ruangan,
+                            jam_selesai: timeStr
+                        }]);
+                    if (error) throw error;
+                }
+
+                // SECURITY LOCK
+                const viewer = document.getElementById('main-exam-view');
+                if (viewer) viewer.innerHTML = '';
+                document.getElementById('fixed-footer').style.display = 'none';
+                document.getElementById('modal-confirm').style.display = 'none';
+                document.querySelector('.info-bar').style.display = 'none';
+                document.getElementById('locked-screen').style.display = 'flex';
+                document.body.style.background = '#020617';
+
+            } catch (err) {
+                alert('Gagal mengirim laporan: ' + err.message);
+                btn.innerHTML = 'KIRIM & KUNCI LAYAR <i class="fas fa-paper-plane"></i>';
+                btn.disabled = false;
+            }
+        }
+
+        // Anti-Back Button (Mencegah siswa kembali ke portal tanpa sengaja)
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () {
+            history.go(1);
+        };
+
+        // Anti-Insting Klik (Mencegah kabur sebelum selesai tanpa sengaja)
+        window.onbeforeunload = function () {
+            if (document.getElementById('locked-screen').style.display !== 'flex') {
+                return "Ujian Anda sedang berlangsung. Apakah Anda yakin ingin keluar?";
+            }
+        };
+    </script>
+</body>
+
+</html>

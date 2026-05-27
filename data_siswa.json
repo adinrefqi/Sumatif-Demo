@@ -1,0 +1,5 @@
+[
+  {"no": 1, "id": "1234", "nama": "Siswa Demo Kelas 7", "gender": "Laki-laki", "grade": 7, "room": 1, "religion": "Islam"},
+  {"no": 2, "id": "1235", "nama": "Siswa Demo Kelas 8", "gender": "Perempuan", "grade": 8, "room": 1, "religion": "Kristen"},
+  {"no": 3, "id": "1236", "nama": "Siswa Demo Kelas 9", "gender": "Laki-laki", "grade": 9, "room": 1, "religion": "Katolik"}
+]
