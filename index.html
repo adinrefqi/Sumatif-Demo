@@ -1416,11 +1416,22 @@
                 if (!client) throw new Error("Koneksi Supabase Gagal");
 
                 // 1. CEK SEBAGAI SISWA
-                let { data: student, error: errS } = await client
-                    .from('master_siswa')
-                    .select('*')
-                    .eq('id', inputVal)
-                    .maybeSingle();
+                let dummySiswa = null;
+                if (window.STUDENT_MASTER_DATA) {
+                    dummySiswa = window.STUDENT_MASTER_DATA.find(s => s.id === inputVal);
+                }
+
+                let student = null;
+                if (dummySiswa) {
+                    student = dummySiswa;
+                } else {
+                    let { data, error: errS } = await client
+                        .from('master_siswa')
+                        .select('*')
+                        .eq('id', inputVal)
+                        .maybeSingle();
+                    student = data;
+                }
 
                 if (student) {
                     if (examControl.blocked_students && examControl.blocked_students.includes(student.id)) {
